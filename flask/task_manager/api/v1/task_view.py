@@ -15,58 +15,26 @@ Endpoints:
 from flask import abort, jsonify, request
 from models.tasks import TaskModel
 from api.v1 import app_views
+from api.errors import validate_json
+from api.auth.auth_utils import authenticate
 
-
-def error_response(status_code, message):
-    """
-    Create a JSON error response.
-
-    Args:
-        status_code (int): HTTP status code
-        message (str): Error message
-
-    Returns:
-        JSON response with error message and status code
-    """
-    response = jsonify({'error': message})
-    response.status_code = status_code
-    return response
-
-
-def validate_json(*required_fields):
-    """
-    Validate JSON input.
-
-    Args:
-        *required_fields (str): Required fields
-
-    Returns:
-        Error response if validation fails, None otherwise
-    """
-    if not request.is_json:
-        return error_response(400, 'Not a JSON')
-
-    data = request.get_json()
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return error_response(400, f'Missing fields: {", ".join(missing_fields)}')
-    return None
-
-
+# Modify the route to use the authentication decorator
 @app_views.route('/', methods=['GET'], strict_slashes=False)
+@authenticate
 def get():
-    """
-    Get all tasks.
+    # Retrieve the authenticated user from the request context
+    user = request.current_user
 
-    Returns:
-        JSON response with all tasks
-    """
-    tasks = TaskModel.get_all()
+    # Fetch all tasks related to the authenticated user
+    tasks = user.tasks
     tasks_json = [task.to_json() for task in tasks]
-    return jsonify(tasks_json)
+
+    return jsonify(tasks_json), 200
+
 
 
 @app_views.route('/<task_id>', methods=['GET'], strict_slashes=False)
+@authenticate
 def get_task(task_id):
     """
     Get a task by ID.
@@ -77,16 +45,27 @@ def get_task(task_id):
     Returns:
         JSON response with the task, or 404 if not found
     """
+    # Retrieve the authenticated user from the request context
+    user = request.current_user
+
+    # Fetch the task by ID
     task = TaskModel.get_first(id=task_id)
-    if not task:
-        abort(404, description="Task not found")
-    return jsonify(task.to_json())
+    # Check if the task exists and is associated with the authenticated user
+    if not task or user not in task.users:
+        return jsonify({'error': 'Task not found'}), 404
+
+    return jsonify(task.to_json()), 200
+
 
 
 @app_views.route('/', methods=['POST'], strict_slashes=False)
+@authenticate
 def create_task():
     """
     Create a new task.
+    
+    Args:
+        task_id (str): Task ID
 
     Returns:
         JSON response with the created task, or error response if validation fails
@@ -97,16 +76,22 @@ def create_task():
 
     # Parse input data after validation
     data = request.get_json()
-    task = TaskModel(
-        title=data['title'],
-        description=data['description'],
-        done=data['done']
-    )
-    task.save()
-    return jsonify(task.to_json()), 201
+    title = data['title']
+    description = data['description']
+    done = data['done']
+    
+    new_task = TaskModel(title=title, description=description, done=done)
+    
+    # Associate the task with the current user    
+    user = request.current_user
+    user.tasks.append(new_task)
+    new_task.save()
+
+    return jsonify(new_task.to_json()), 201
 
 
 @app_views.route('/<task_id>', methods=['PUT'], strict_slashes=False)
+@authenticate
 def update_task(task_id):
     """
     Update an existing task.
@@ -117,19 +102,16 @@ def update_task(task_id):
     Returns:
         JSON response with the updated task, or error response if validation fails or task not found
     """
+    task = TaskModel.get_first(id=task_id)
+    if not task:
+        abort(404, description="Task not found")
+
     error = validate_json('title', 'description', 'done')
     if error:
         return error
 
-    # Retrieve the task by ID
-    task = TaskModel.get_first(id=task_id)
-    if not task:
-        return jsonify({'error': 'Task not found'}), 404
-
     # Parse input data after validation
     data = request.get_json()
-
-    # Update the task with the new values
     task.title = data['title']
     task.description = data['description']
     task.done = data['done']
@@ -152,5 +134,7 @@ def delete_task(task_id):
     task = TaskModel.get_first(id=task_id)
     if not task:
         abort(404, description="Task not found")
+
     task.delete()
+
     return jsonify({'message': 'Task deleted successfully'}), 200

@@ -2,7 +2,14 @@
 # models/task.py
 
 from .base_model import BaseModel
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, Table, Integer, ForeignKey
+from sqlalchemy.orm import relationship
+
+
+task_user_association = Table('task_user_association', BaseModel.metadata,
+    Column('task_id', String(36), ForeignKey('tasks.id')),
+    Column('user_id', String(36), ForeignKey('users.id'))
+)
 
 class TaskModel(BaseModel):
     """Model for the tasks table."""
@@ -12,6 +19,9 @@ class TaskModel(BaseModel):
     title = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     done = Column(Boolean, default=False)
+    
+    # Define relationship with users
+    users = relationship("UserModel", secondary=task_user_association, back_populates="tasks")
 
     def __init__(self, title=None, description=None, done=False):
         """
@@ -35,7 +45,7 @@ class TaskModel(BaseModel):
     
     def to_json(self):
         """
-        Serialize the Task model instance attributes to a dictionary.
+        Serialize the Task model instance attributes to a dictionary
 
         :return: Dictionary representation of the Task instance
         """
@@ -47,3 +57,6 @@ class TaskModel(BaseModel):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
+
+# Import UserModel after it's defined
+from .users import UserModel

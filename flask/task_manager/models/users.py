@@ -1,8 +1,18 @@
 #!/usr/bin/python3
 # models/user.py
 
-from models.base_model import BaseModel
+from .base_model import BaseModel
 from sqlalchemy import Column, String
+from sqlalchemy import Enum as SQLAlchemyEnum
+from sqlalchemy.orm import relationship
+from models.roles import UserRole, get_user_role
+from .tasks import task_user_association
+import bcrypt, jwt
+from datetime import datetime, timedelta
+import os
+
+# Get the secret key from the environment variables
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # Define the User model
 class UserModel(BaseModel):
@@ -10,21 +20,35 @@ class UserModel(BaseModel):
     __tablename__ = 'users'
 
     # Define columns
+    email = Column(String(120), unique=True, nullable=False)
     username = Column(String(50), unique=True, nullable=False)
-    name = Column(String(50), unique=True)
-    email = Column(String(120), unique=True)
+    first_name = Column(String(50), nullable=False)
+    last_name = Column(String(50), nullable=False)
+    _password = Column('password', String(128), nullable=False)
+    role = Column(SQLAlchemyEnum(UserRole), default=UserRole.USER, nullable=False)
+    
+    # Define relationship with tasks
+    tasks = relationship("TaskModel", secondary=task_user_association, back_populates="users")
 
-    def __init__(self, name=None, email=None, username=None):
+    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None, role='User'):
         """
         Initialize a new User instance.
 
-        :param name: The user's name
-        :param email: The user's email address
         :param username: The user's username
+        :param first_name: The user's first name
+        :param last_name: The user's last name
+        :param password: The user's password
+        :param email: The user's email address
         """
         self.username = username
-        self.name = name
+        self.first_name = first_name
+        self.last_name = last_name
+        if password is not None:
+            self.password = password
+        # self.password = password
         self.email = email
+        self.role = get_user_role(role).value
+
 
     def __repr__(self):
         """
@@ -32,7 +56,7 @@ class UserModel(BaseModel):
 
         :return: String representation of the User instance
         """
-        return f'<User {self.name!r}>'
+        return f'<User {self.username!r}>'
     
     def to_json(self):
         """
@@ -40,9 +64,65 @@ class UserModel(BaseModel):
 
         :return: Dictionary representation of the User instance
         """
-        return {
-            'id': self.id,
-            'username': self.username,
-            'name': self.name,
-            'email': self.email
-        }
+        try:
+            return {
+                'id': self.id,
+                'username': self.username,
+                'first_name': self.first_name,
+                'last_name': self.last_name,
+                'email': self.email
+            }
+        except Exception as e:
+            print(f"Error in to_json(): {e}")
+            return None
+
+    @property
+    def password(self):
+        """Getter method for the password."""
+        raise AttributeError('password: write-only field')
+
+    @password.setter
+    def password(self, password):
+        """Setter method for the password."""
+        if password:
+            self._password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def check_password(self, password):
+        return bcrypt.checkpw(password.encode('utf-8'), self._password.encode('utf-8'))
+
+    
+    def generate_token(self):
+        """Generate a JWT token for the user."""
+        try:
+            payload = {
+                'exp': datetime.utcnow() + timedelta(days=1, seconds=5),
+                'iat': datetime.utcnow(),
+                'sub': self.id
+            }
+            return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+        except Exception as e:
+            return e
+
+
+    @staticmethod
+    def verify_token(token):
+        """Verify the JWT token."""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+            user_id = payload['sub']
+            return user_id
+        except jwt.ExpiredSignatureError:
+            # Token has expired
+            return None
+        except jwt.InvalidTokenError:
+            # Invalid token
+            return None
+
+    def has_role(self, target_role):
+        """
+        Check if the user has the specified role.
+
+        :param target_role: The role to check
+        :return: True if the user has the role, False otherwise
+        """
+        return self.role == target_role

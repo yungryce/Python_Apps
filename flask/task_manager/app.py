@@ -2,8 +2,11 @@
 import os
 from flask import Flask, jsonify
 from api.v1 import app_views
+from api.auth.auth import auth_views
+# from api.auth import auth_views
 from database import db, init_db
 from flask_migrate import Migrate
+from factories.users import generateusers, deleteallusers
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -22,6 +25,10 @@ migrate = Migrate(app, db)
 
 # Register the Blueprint with the Flask application
 app.register_blueprint(app_views)
+app.register_blueprint(auth_views)
+
+app.cli.add_command(generateusers)
+app.cli.add_command(deleteallusers)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -33,12 +40,12 @@ def internal_server_error(error):
     """Error handler for 500 Internal Server Error."""
     return jsonify({'error': 'Internal server error'}), 500
 
-@app.errorhandler(Exception)
-def handle_unexpected_error(error):
-    """General error handler."""
-    response = jsonify({'error': 'An unexpected error occurred'})
-    response.status_code = 500 if not hasattr(error, 'code') else error.code
-    return response
+# @app.errorhandler(Exception)
+# def handle_unexpected_error(error):
+#     """General error handler."""
+#     response = jsonify({'error': 'An unexpected error occurred'})
+#     response.status_code = 500 if not hasattr(error, 'code') else error.code
+#     return response
 
 
 if __name__ == '__main__':
