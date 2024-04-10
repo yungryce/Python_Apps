@@ -3,9 +3,15 @@ from models.users import UserModel
 from models.blacklist import BlacklistToken
 from api.errors import validate_json
 from api.auth.auth_utils import authenticate
+import os, jwt
+from datetime import datetime, timedelta
+
 
 
 auth_views = Blueprint("auth_views", __name__, url_prefix="/api/auth")
+
+# Get the secret key from the environment variables
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 
 @auth_views.route('/register', methods=['POST'])
@@ -60,16 +66,15 @@ def login():
 
     if user and user.check_password(data['password']):
         # Generate tokens
-        token = user.generate_token()
-
-        # Check if any token generation errors occurred
-        if isinstance(token, Exception):
-            return jsonify({'error': 'Failed to generate tokens'}), 500
-        # Generate token
-
-        # Check if the token is blacklisted
-        if BlacklistToken.check_blacklist(token):
-            return jsonify({'error': 'Token: Not allowed'}), 401
+        try:
+            payload = {
+                'exp': datetime.utcnow() + timedelta(days=1, seconds=5),
+                'iat': datetime.utcnow(),
+                'sub': user.id
+            }
+            token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+        except Exception as e:
+            return jsonify({'error': 'Couldn\'t generate token. Please try agagin'}), 500
 
         # Serialize the user object to a JSON-compatible dictionary
         user_data = user.to_json()

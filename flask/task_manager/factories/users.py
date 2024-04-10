@@ -1,7 +1,7 @@
 from faker import Faker
 import click
 from flask.cli import with_appcontext
-from models.roles import UserRole
+from models.users import UserRole
 
 
 def create_user(username, first_name, last_name, email, password, role):

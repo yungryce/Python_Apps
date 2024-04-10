@@ -1,7 +1,8 @@
 import os, jwt
 from functools import wraps
 from flask import request, jsonify
-from models.users import UserModel
+from models.users import UserModel, UserRole
+from models.tasks import TaskModel
 from models.blacklist import BlacklistToken
 
 
@@ -36,5 +37,47 @@ def authenticate(func):
 
         # Call the original function with any provided arguments
         return func(*args, **kwargs)
+
+    return wrapper
+
+
+def authorize(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        """
+        Check if the user is authorized to perform the action.
+
+        Args:
+            user: The user attempting to perform the action
+            task: The task associated with the action
+
+        Returns:
+            If user is authorized, calls the original function.
+            If user is not authorized, returns an error response.
+        """
+        user = request.current_user
+        
+        task_id = kwargs.get('task_id')
+        if not task_id:
+            return jsonify({'error': 'Task ID is missing'}), 400
+        
+        task = TaskModel.get_first(id=task_id)
+        if not task:
+            return jsonify({'error': 'Task not found'}), 404
+
+        # Check if the user is an admin
+        if user.role == UserRole.ADMIN:
+            return func(*args, **kwargs)
+
+        # Check if the user is the only assigned user to the task
+        if len(task.users) == 1:
+            return func(*args, **kwargs)
+
+        # If the user is assigned to the task, check their role against the task's assigned users
+        for assigned_user in task.users:
+            if UserRole.compare_roles(user.role, assigned_user.role) >= 0:
+                return func(*args, **kwargs)
+
+        return jsonify({'error': 'You are not authorized to perform this action'}), 403
 
     return wrapper

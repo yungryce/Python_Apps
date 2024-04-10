@@ -5,14 +5,36 @@ from .base_model import BaseModel
 from sqlalchemy import Column, String
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
-from models.roles import UserRole, get_user_role
+from enum import Enum
 from .tasks import task_user_association
-import bcrypt, jwt
-from datetime import datetime, timedelta
-import os
+import bcrypt
 
-# Get the secret key from the environment variables
-SECRET_KEY = os.getenv('SECRET_KEY')
+
+class UserRole(Enum):
+    ADMIN = "admin"
+    USER = "user"
+    DEVELOPER = "developer"
+
+    # Define the hierarchy
+    HIERARCHY = {
+        ADMIN: 3,
+        DEVELOPER: 2,
+        USER: 1
+    }
+
+    @classmethod
+    def compare_roles(cls, role1, role2):
+        """Compare two roles based on the hierarchy"""
+        return cls.HIERARCHY.get(role1, 0) - cls.HIERARCHY.get(role2, 0)
+
+
+def get_user_role(role: str) -> UserRole:
+    if role in UserRole._value2member_map_:
+        return UserRole(role)
+    else:
+        raise ValueError(f"{role} is not a valid UserRole")
+
+
 
 # Define the User model
 class UserModel(BaseModel):
@@ -28,9 +50,12 @@ class UserModel(BaseModel):
     role = Column(SQLAlchemyEnum(UserRole), default=UserRole.USER, nullable=False)
     
     # Define relationship with tasks
-    tasks = relationship("TaskModel", secondary=task_user_association, back_populates="users")
+    tasks = relationship("TaskModel", 
+                         secondary=task_user_association, 
+                         back_populates="users",
+                         cascade="save-update, merge, delete")
 
-    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None, role='User'):
+    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None, role='user'):
         """
         Initialize a new User instance.
 
@@ -47,7 +72,7 @@ class UserModel(BaseModel):
             self.password = password
         # self.password = password
         self.email = email
-        self.role = get_user_role(role).value
+        self.role = get_user_role(role)
 
 
     def __repr__(self):
@@ -89,40 +114,3 @@ class UserModel(BaseModel):
 
     def check_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self._password.encode('utf-8'))
-
-    
-    def generate_token(self):
-        """Generate a JWT token for the user."""
-        try:
-            payload = {
-                'exp': datetime.utcnow() + timedelta(days=1, seconds=5),
-                'iat': datetime.utcnow(),
-                'sub': self.id
-            }
-            return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
-        except Exception as e:
-            return e
-
-
-    @staticmethod
-    def verify_token(token):
-        """Verify the JWT token."""
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-            user_id = payload['sub']
-            return user_id
-        except jwt.ExpiredSignatureError:
-            # Token has expired
-            return None
-        except jwt.InvalidTokenError:
-            # Invalid token
-            return None
-
-    def has_role(self, target_role):
-        """
-        Check if the user has the specified role.
-
-        :param target_role: The role to check
-        :return: True if the user has the role, False otherwise
-        """
-        return self.role == target_role

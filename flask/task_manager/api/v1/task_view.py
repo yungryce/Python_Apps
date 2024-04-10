@@ -14,9 +14,10 @@ Endpoints:
 
 from flask import abort, jsonify, request
 from models.tasks import TaskModel
+from models.users import UserModel
 from api.v1 import app_views
 from api.errors import validate_json
-from api.auth.auth_utils import authenticate
+from api.auth.auth_utils import authenticate, authorize
 
 # Modify the route to use the authentication decorator
 @app_views.route('/', methods=['GET'], strict_slashes=False)
@@ -70,7 +71,7 @@ def create_task():
     Returns:
         JSON response with the created task, or error response if validation fails
     """
-    error = validate_json('title', 'description', 'done')
+    error = validate_json('title', 'description', 'status')
     if error:
         return error
 
@@ -78,13 +79,21 @@ def create_task():
     data = request.get_json()
     title = data['title']
     description = data['description']
-    done = data['done']
+    status = data['status']
+    assigned_users = data.get('assigned_users', [])
     
-    new_task = TaskModel(title=title, description=description, done=done)
+    new_task = TaskModel(title=title, description=description, status=status)
     
     # Associate the task with the current user    
     user = request.current_user
     user.tasks.append(new_task)
+    
+    # Assign the task to additional users
+    for user_id in assigned_users:
+        assigned_user = UserModel.get_first(id=user_id)
+        if assigned_user:
+            assigned_user.tasks.append(new_task)
+
     new_task.save()
 
     return jsonify(new_task.to_json()), 201
@@ -106,7 +115,7 @@ def update_task(task_id):
     if not task:
         abort(404, description="Task not found")
 
-    error = validate_json('title', 'description', 'done')
+    error = validate_json('title', 'description', 'status')
     if error:
         return error
 
@@ -114,13 +123,30 @@ def update_task(task_id):
     data = request.get_json()
     task.title = data['title']
     task.description = data['description']
-    task.done = data['done']
+    task.status = data['status']
+    assigned_users = data.get('assigned_users', [])
+    
+    # Update assigned users if 'assigned_users' field is present
+    assigned_users = data.get('assigned_users')
+    if assigned_users:
+        # Get the IDs of users already assigned to the task
+        current_assigned_user_ids = {user.id for user in task.users}
+
+        # Iterate through the new assigned users
+        for user_id in assigned_users:
+            # Check if the user is not already assigned to the task
+            if user_id not in current_assigned_user_ids:
+                user = UserModel.get_first(id=user_id)
+                if user:
+                    task.users.append(user)
     task.save()
 
     return jsonify(task.to_json()), 200
 
 
 @app_views.route('/<task_id>', methods=['DELETE'], strict_slashes=False)
+@authenticate
+@authorize
 def delete_task(task_id):
     """
     Delete a task.
@@ -135,6 +161,11 @@ def delete_task(task_id):
     if not task:
         abort(404, description="Task not found")
 
+    # Remove associated users from the task
+    task.users.clear()
+    task.save()
+
+    # Delete the task itself
     task.delete()
 
     return jsonify({'message': 'Task deleted successfully'}), 200
