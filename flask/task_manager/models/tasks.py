@@ -7,6 +7,7 @@ from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 
 
+
 class TaskStatus(Enum):
     START = "start"
     PAUSE = "pause"
