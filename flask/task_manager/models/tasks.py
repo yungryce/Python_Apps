@@ -14,11 +14,11 @@ class TaskStatus(Enum):
     DONE = "done"
     CLOSE = "close"
     
-def get_task_status(status: str):
-    if status in TaskStatus._value2member_map_:
-        return TaskStatus(status)
-    else:
-        raise ValueError(f"{status} is not a valid TaskStatus")
+# def get_task_status(status: str):
+#     if status in TaskStatus._value2member_map_:
+#         return TaskStatus(status)
+#     else:
+#         raise ValueError(f"{status} is not a valid TaskStatus")
 
 
 task_user_association = Table('task_user_association', BaseModel.metadata,
