@@ -14,11 +14,11 @@ class TaskStatus(Enum):
     DONE = "done"
     CLOSE = "close"
     
-def get_task_status(status: str):
-    if status in TaskStatus._value2member_map_:
-        return TaskStatus(status)
-    else:
-        raise ValueError(f"{status} is not a valid TaskStatus")
+# def get_task_status(status: str):
+#     if status in TaskStatus._value2member_map_:
+#         return TaskStatus(status)
+#     else:
+#         raise ValueError(f"{status} is not a valid TaskStatus")
 
 
 task_user_association = Table('task_user_association', BaseModel.metadata,
@@ -41,7 +41,7 @@ class TaskModel(BaseModel):
                     back_populates="tasks",
                     cascade="save-update, merge, delete")
 
-    def __init__(self, title=None, description=None, status='pause'):
+    def __init__(self, title=None, description=None, status=TaskStatus.PAUSE):
         """
         Initialize a new Task instance.
 
@@ -51,7 +51,7 @@ class TaskModel(BaseModel):
         """
         self.title = title
         self.description = description
-        self.status = get_task_status(status)
+        self.status = status
 
     def __repr__(self):
         """

@@ -22,17 +22,21 @@ class UserRole(Enum):
         USER: 1
     }
 
-    @classmethod
-    def compare_roles(cls, role1, role2):
+
+    @staticmethod
+    def compare_roles(role1, role2):
         """Compare two roles based on the hierarchy"""
-        return cls.HIERARCHY.get(role1, 0) - cls.HIERARCHY.get(role2, 0)
+        # Get the hierarchy dictionary from enum type
+        hierarchy_dict = UserRole.__members__['HIERARCHY'].value
+        return hierarchy_dict.get(role1.name, 0) - hierarchy_dict.get(role2.name, 0)
 
 
-def get_user_role(role: str) -> UserRole:
-    if role in UserRole._value2member_map_:
-        return UserRole(role)
-    else:
-        raise ValueError(f"{role} is not a valid UserRole")
+
+# def get_user_role(role: str) -> UserRole:
+#     if role in UserRole._value2member_map_:
+#         return UserRole(role)
+#     else:
+#         raise ValueError(f"{role} is not a valid UserRole")
 
 
 
@@ -55,7 +59,7 @@ class UserModel(BaseModel):
                          back_populates="users",
                          cascade="save-update, merge, delete")
 
-    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None, role='user'):
+    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None):
         """
         Initialize a new User instance.
 
@@ -72,7 +76,7 @@ class UserModel(BaseModel):
             self.password = password
         # self.password = password
         self.email = email
-        self.role = get_user_role(role)
+        self.role = UserRole.USER
 
 
     def __repr__(self):

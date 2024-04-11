@@ -13,7 +13,7 @@ Endpoints:
 """
 
 from flask import abort, jsonify, request
-from models.tasks import TaskModel
+from models.tasks import TaskModel, TaskStatus
 from models.users import UserModel
 from api.v1 import app_views
 from api.errors import validate_json
@@ -79,10 +79,9 @@ def create_task():
     data = request.get_json()
     title = data['title']
     description = data['description']
-    status = data['status']
     assigned_users = data.get('assigned_users', [])
     
-    new_task = TaskModel(title=title, description=description, status=status)
+    new_task = TaskModel(title=title, description=description)
     
     # Associate the task with the current user    
     user = request.current_user
@@ -121,10 +120,16 @@ def update_task(task_id):
 
     # Parse input data after validation
     data = request.get_json()
+    
+    status = data['status']
+    if status and status not in TaskStatus._value2member_map_:
+        return jsonify({'error': 'Invalid status value'}), 400
+    print(status)
+    
     task.title = data['title']
     task.description = data['description']
-    task.status = data['status']
     assigned_users = data.get('assigned_users', [])
+    task.status = TaskStatus(status)
     
     # Update assigned users if 'assigned_users' field is present
     assigned_users = data.get('assigned_users')
