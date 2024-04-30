@@ -1,0 +1,11 @@
+body {
+    margin: 0; /* Remove default margin */
+    padding: 0; /* Remove default padding */
+    background: white url("images/ASYDS1221_01.webp") no-repeat;
+    background-size: cover; /* Cover the entire screen */
+}
+
+
+li a {
+    color: green;
+}

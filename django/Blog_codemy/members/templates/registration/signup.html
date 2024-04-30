@@ -1,0 +1,12 @@
+{% extends 'blog/navbar.html' %}
+{% block title %} Signup {% endblock %}
+{% block content %}
+
+
+    <form method="POST" action="">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary"> Signup </button>
+        
+
+{% endblock %}

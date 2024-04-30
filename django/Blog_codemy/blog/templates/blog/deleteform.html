@@ -1,0 +1,17 @@
+{% extends 'blog/navbar.html' %}
+{% block title %} posts {% endblock %}
+{% block content %}
+
+    <h3>Delete: {{ reg.title }}</h3>
+    {% if user.is_authenticated %}
+        <form method="POST" action="">
+            {% csrf_token %}
+            <button class="btn btn-info"> Delete </button>
+            <a href="{% url 'home' %}" class="btn btn-danger"> Cancel </a>
+
+    {% else %}
+        <p> Please Login to delete post </p>
+    {% endif %}
+
+{% endblock %}
+ 

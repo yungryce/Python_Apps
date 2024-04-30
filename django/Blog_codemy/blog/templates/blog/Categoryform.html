@@ -1,0 +1,20 @@
+{% extends 'blog/navbar.html' %}
+{% block title %} Categories {% endblock %}
+{% block content %}
+
+<h3> Add Categories</h3>
+<br>
+    {% if user.is_authenticated %}
+        <form method="POST" action="">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button class="btn btn-primary"> Submit </button>
+            <a class="btn btn-info" href="{% url 'home' %}">Cancel</a>
+    {% else %}
+        <p>
+            PLease Login to use this page
+        </p>
+    {% endif %}
+        
+
+{% endblock %}
