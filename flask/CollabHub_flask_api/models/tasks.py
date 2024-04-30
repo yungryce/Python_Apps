@@ -35,13 +35,14 @@ class TaskModel(BaseModel):
     title = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     status = Column(SQLAlchemyEnum(TaskStatus), default=TaskStatus.PAUSE, nullable=False)
+    created_by = Column(String(36), ForeignKey('users.id'))
     # Define relationship with users
     users = relationship("UserModel", 
                     secondary=task_user_association, 
                     back_populates="tasks",
                     cascade="save-update, merge, delete")
 
-    def __init__(self, title=None, description=None, status=TaskStatus.PAUSE):
+    def __init__(self, title=None, description=None, status=TaskStatus.PAUSE, created_by=None):
         """
         Initialize a new Task instance.
 
@@ -52,6 +53,7 @@ class TaskModel(BaseModel):
         self.title = title
         self.description = description
         self.status = status
+        self.created_by = created_by
 
     def __repr__(self):
         """

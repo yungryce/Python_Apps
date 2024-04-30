@@ -28,7 +28,7 @@ class UserRole(Enum):
         """Compare two roles based on the hierarchy"""
         # Get the hierarchy dictionary from enum type
         hierarchy_dict = UserRole.__members__['HIERARCHY'].value
-        return hierarchy_dict.get(role1.name, 0) - hierarchy_dict.get(role2.name, 0)
+        return hierarchy_dict.get(role1.value, 0) - hierarchy_dict.get(role2.value, 0)
 
 
 
@@ -59,7 +59,7 @@ class UserModel(BaseModel):
                          back_populates="users",
                          cascade="save-update, merge, delete")
 
-    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None):
+    def __init__(self, username=None, first_name=None, last_name=None, password=None, email=None, role=UserRole.USER):
         """
         Initialize a new User instance.
 
@@ -76,7 +76,7 @@ class UserModel(BaseModel):
             self.password = password
         # self.password = password
         self.email = email
-        self.role = UserRole.USER
+        self.role = role
 
 
     def __repr__(self):

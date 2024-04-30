@@ -1,17 +1,39 @@
 from flask import Blueprint, request, jsonify
 from models.users import UserModel
 from models.blacklist import BlacklistToken
-from api.errors import validate_json
+from api.response_utils import validate_json, response_info
 from api.auth.auth_utils import authenticate
 import os, jwt
 from datetime import datetime, timedelta
-
 
 
 auth_views = Blueprint("auth_views", __name__, url_prefix="/api/auth")
 
 # Get the secret key from the environment variables
 SECRET_KEY = os.getenv('SECRET_KEY')
+
+@auth_views.route('/user', methods=['GET'])
+@authenticate
+def get_user():
+    """
+    Get details of the currently authenticated user.
+
+    Returns:
+        JSON response with the user details, or error response if authentication fails
+    """
+    try:
+        # Get the authenticated user from the request
+        user = request.current_user
+
+        # Check if the user exists
+        if user:
+            # Serialize the user object to a JSON-compatible dictionary
+            user_data = user.to_json()
+            return jsonify(response_info(200, data=user_data))
+        else:
+            return jsonify(response_info(404, message='User not found'))
+    except Exception as e:
+        return jsonify(response_info(500, message='Failed to fetch user details'))
 
 
 @auth_views.route('/register', methods=['POST'])
@@ -32,7 +54,8 @@ def register():
     
     # Check if the username or email already exists
     if UserModel.get_first(username=username) or UserModel.get_first(email=email):
-        return jsonify({'error': 'Username or Email already exists'}), 409
+            error_message = 'Username or Email already exists'
+            return jsonify(response_info(409, message=error_message))
     
     # Proceed to create a new user since neither the username nor email are taken
     new_user = UserModel(
@@ -46,10 +69,11 @@ def register():
     # Save the new user to the database
     try:
         new_user.save()
-        return jsonify({'message': 'User registered successfully'}), 201
+        return jsonify(response_info(201, message='User registered successfully'))
     except Exception as e:
         # Handle any errors that occur during the save operation
-        return jsonify({'error': 'Failed to register user'}), 500
+        error_message = 'Failed to register user: {}'.format(str(e))  # Construct error message
+        return jsonify(response_info(500, message=error_message))
 
 
 @auth_views.route('/login', methods=['POST'])
@@ -63,7 +87,7 @@ def login():
     username=data['username']
 
     user = UserModel.get_first(username=username)
-
+    
     if user and user.check_password(data['password']):
         # Generate tokens
         try:
@@ -74,21 +98,24 @@ def login():
             }
             token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
         except Exception as e:
-            return jsonify({'error': 'Couldn\'t generate token. Please try agagin'}), 500
+            error_message = 'Failed to generate Token: {}'.format(str(e))  # Construct error message
+            return jsonify(response_info(500, message=error_message))
 
         # Serialize the user object to a JSON-compatible dictionary
         user_data = user.to_json()
         
         if user_data:
-            return jsonify({
-                'message': 'Login successful',
+            return jsonify(response_info(200, message='Login successful', data={
                 'token': token,
                 'user': user_data
-            }), 200
+            }))
         else:
-            return jsonify({'error': 'Failed to serialize user data'}), 500
+            error_message = 'Failed to serialize user data'
+            return jsonify(response_info(500, message=error_message))
+        
     else:
-        return jsonify({'error': 'Invalid username or password'}), 401
+        error_message = 'Invalid username or password'
+        return jsonify(response_info(401, message=error_message))
 
 
 @auth_views.route('/logout', methods=['POST'])
@@ -103,6 +130,7 @@ def logout():
     try:
         blacklisted_token = BlacklistToken(token=token)
         blacklisted_token.save()
-        return jsonify({'message': 'Logout successful'}), 200
+        return jsonify(response_info(200, message='Logged out successfully'))
     except Exception as e:
-        return jsonify({'error': 'Failed to logout'}), 500
+        error_message = 'Failed to logout: {}'.format(str(e))
+        return jsonify(response_info(500, message=error_message))

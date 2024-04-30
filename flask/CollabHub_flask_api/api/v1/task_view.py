@@ -16,7 +16,7 @@ from flask import abort, jsonify, request
 from models.tasks import TaskModel, TaskStatus
 from models.users import UserModel
 from api.v1 import app_views
-from api.errors import validate_json
+from api.response_utils import validate_json
 from api.auth.auth_utils import authenticate, authorize
 
 # Modify the route to use the authentication decorator
@@ -124,7 +124,6 @@ def update_task(task_id):
     status = data['status']
     if status and status not in TaskStatus._value2member_map_:
         return jsonify({'error': 'Invalid status value'}), 400
-    print(status)
     
     task.title = data['title']
     task.description = data['description']

@@ -27,8 +27,8 @@ def generateusers():
             fake.first_name(),
             fake.last_name(),
             fake.unique.email(),
-            fake.password(),
-            UserRole.ADMIN.value
+            "password",
+            UserRole.ADMIN
         )
     for _ in range(24):
         create_user(
@@ -36,8 +36,8 @@ def generateusers():
             fake.first_name(),
             fake.last_name(),
             fake.unique.email(),
-            fake.password(),
-            UserRole.DEVELOPER.value
+            "password",
+            UserRole.DEVELOPER
         )
     for _ in range(174):
         create_user(
@@ -45,8 +45,8 @@ def generateusers():
             fake.first_name(),
             fake.last_name(),
             fake.unique.email(),
-            fake.password(),
-            UserRole.USER.value
+            "password",
+            UserRole.USER
         )
     click.echo("Users generated successfully.")
 
