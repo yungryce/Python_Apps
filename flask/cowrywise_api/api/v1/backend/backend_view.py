@@ -27,6 +27,11 @@ def add_book():
 
     if not title or not publisher or not category:
         return jsonify({"message": "Missing required fields: title, publisher, or category"}), 400
+    
+    # Check if the book with the same title already exists
+    existing_book = Book.query.filter_by(title=title).first()
+    if existing_book:
+        return jsonify({"message": f"Book with the title '{title}' already exists"}), 409  # 409 Conflict
 
     # Create the book object
     book = Book(title=title, publisher=publisher, category=category)
@@ -53,7 +58,7 @@ def add_book():
         # Handle connection errors or other request exceptions
         return jsonify({"message": f"Error adding book: {str(e)}"}), 500
 
-@backend_bp.route('/books/remove/<int:book_id>', methods=['DELETE'])
+@backend_bp.route('/books/remove/<string:book_id>', methods=['DELETE'])
 def remove_book(book_id):
     """
     Remove a book from the backend database and notify the frontend service.
@@ -69,7 +74,7 @@ def remove_book(book_id):
         book.delete()
 
         # Notify the frontend service using a webhook
-        frontend_update_url = 'http://localhost:5001/webhooks/remove-book'  # URL of the frontend service
+        frontend_update_url = 'http://localhost:5001/api/v1/frontend/webhooks/remove-book'
         payload = {'book_id': book_id}
 
         response = requests.post(frontend_update_url, json=payload)
@@ -170,9 +175,9 @@ def add_user_webhook():
     user = User.query.get(user_id)
     if user:
         return jsonify({"message": "User already exists"}), 400
-    else:
-        # Create a new user
-        user = User(**user_data)
+    
+    # Create a new user
+    user = User(**user_data)
     
     try:
         user.save()

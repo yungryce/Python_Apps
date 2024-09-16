@@ -25,6 +25,6 @@ class User(BaseModel):
         
         if include_books:
             # Include borrowed books' titles
-            data['borrowed_books'] = [book.title for book in self.borrowed_books]
+            data['is_avaialable'] = [book.title for book in self.books]
         
         return data

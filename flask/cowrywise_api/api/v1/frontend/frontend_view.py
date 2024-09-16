@@ -30,6 +30,11 @@ def enroll_user():
 
     if not email or not firstname or not lastname:
         return jsonify({"message": "Missing required fields: email, firstname, or lastname"}), 400
+    
+    # Check if user already exists based on email
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({"message": "User already enrolled"}), 409 
 
     # Create the user object
     user = User(email=email, firstname=firstname, lastname=lastname)
@@ -201,9 +206,9 @@ def add_book_webhook():
     book = Book.query.get(book_data['id'])
     if book:
         return jsonify({"message": "Book already exists"}), 400
-    else:
-        # Create a new book
-        book = Book(**book_data)
+
+    # Create a new book
+    book = Book(**book_data)
     
     # Save the new book to the frontend database
     try:
