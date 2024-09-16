@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import requests
+from datetime import datetime
 from models.book import Book
 from models.user import User
 from models.base_model import db
@@ -35,7 +36,7 @@ def add_book():
         book.save()
 
         # Notify the frontend service using a webhook (localhost)
-        frontend_update_url = 'http://localhost:5001/webhooks/add-book'  # Change to your actual frontend port
+        frontend_update_url = 'http://localhost:5001/api/v1/frontend/webhooks/add-book'  # Change to your actual frontend port
         payload = {'book_id': book.id, 'book_data': book.to_dict()}
         
         # Send book data as payload
@@ -159,6 +160,11 @@ def add_user_webhook():
     user_id = user_data.get('id')
     if not user_id:
         return jsonify({"message": "Missing user ID"}), 400
+    
+    # Convert date strings to datetime objects
+    for date_field in ['created_at', 'updated_at']:
+        if user_data.get(date_field):
+            user_data[date_field] = datetime.fromisoformat(user_data[date_field])
 
     # Check if the user already exists
     user = User.query.get(user_id)

@@ -15,10 +15,10 @@ class FrontendConfig(BaseConfig):
 class BackendConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = os.getenv('BACKEND_DATABASE_URL', 'sqlite:///backend_library.db')
 
-class DevelopmentConfig(FrontendConfig):
+class FrontendDevelopmentConfig(FrontendConfig):
     DEBUG = True
 
-class ProductionConfig(FrontendConfig):
+class FrontendProductionConfig(FrontendConfig):
     DEBUG = False
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
@@ -29,12 +29,22 @@ class BackendProductionConfig(BackendConfig):
     DEBUG = False
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
+# Centralized mapping of configs
 Config = {
-    'frontend_development': DevelopmentConfig,
-    'frontend_production': ProductionConfig,
+    'frontend_development': FrontendDevelopmentConfig,
+    'frontend_production': FrontendProductionConfig,
     'backend_development': BackendDevelopmentConfig,
     'backend_production': BackendProductionConfig
 }
+
+def get_config():
+    """Load the appropriate config based on environment variables."""
+    app_role = os.getenv('APP_ROLE', 'frontend')
+    env = os.getenv('FLASK_ENV', 'development')
+    
+    config_key = f"{app_role}_{env}"
+    return Config.get(config_key, FrontendDevelopmentConfig)
+
 
 def setup_logging(app):
     log_format = '%(asctime)s - %(levelname)s - %(message)s'

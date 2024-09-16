@@ -14,19 +14,19 @@ class Book(BaseModel):
     borrowed_by_id = Column(Integer, ForeignKey('users.id'))
 
     # Define a relationship with User
-    borrower = relationship('User', backref='borrowed_books')
+    users = relationship('User', lazy=True, back_populates='books')
 
     def __repr__(self):
         return f'<Book {self.title}>'
 
-    def to_dict(self):
+    def to_dict(self, fields=None):
         """
-        Convert the book instance to a dictionary.
+        Convert the book instance to a dictionary, including only the specified fields if provided.
 
+        :param fields: Optional list of fields to include in the dictionary
         :return: Dictionary representation of the book instance
         """
-        data = super().to_dict()
-        # Add the available_on field (borrowed_until) if not available
+        data = super().to_dict(fields=fields)  # Call the BaseModel's to_dict method
         if not self.is_available:
-            data['available_on'] = self.borrowed_until.isoformat() if self.borrowed_until else None
+            data['available_on'] = self.return_by.isoformat() if self.return_by else None
         return data

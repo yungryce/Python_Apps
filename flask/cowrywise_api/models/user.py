@@ -9,7 +9,7 @@ class User(BaseModel):
     email = db.Column(db.String(120), unique=True, nullable=False)
     firstname = db.Column(db.String(50), nullable=False)
     lastname = db.Column(db.String(50), nullable=False)
-    borrowed_books = relationship('Book', backref='borrower', lazy=True)
+    books = relationship('Book', lazy=True, back_populates='users')
 
     def __repr__(self):
         return f'<User {self.firstname} {self.lastname}>'

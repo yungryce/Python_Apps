@@ -39,7 +39,7 @@ def enroll_user():
         user.save()
         
         # Notify the backend service using a webhook
-        backend_update_url = 'http://localhost:5000/webhooks/add-user'  # URL of the backend service
+        backend_update_url = 'http://localhost:5000/api/v1/backend/admin/webhooks/add-user'  # URL of the backend service
         payload = {'user_id': user.id, 'user_data': user.to_dict()}
         
         # Send user data as payload
@@ -62,20 +62,23 @@ def list_books():
 
     This endpoint fetches all books that are currently available for borrowing.
 
-    :return: JSON response with a list of book titles that are available.
+    :return: JSON response with a list of books including their id and title.
     """
     try:
         # Fetch books that are available
         books = Book.get_all(filters={"is_available": True})
         
-        # Return a list of book titles
-        return jsonify([book.title for book in books]), 200
+        # Create a list of dictionaries with id and title for each book
+        book_list = [{'id': book.id, 'title': book.title} for book in books]
+        
+        return jsonify(book_list), 200
 
     except Exception as e:
         # Handle unexpected errors during retrieval
         return jsonify({"message": f"Error retrieving available books: {str(e)}"}), 500
 
-@frontend_bp.route('/book/<int:book_id>', methods=['GET'])
+
+@frontend_bp.route('/book/<string:book_id>', methods=['GET'])
 def get_book(book_id):
     """
     Retrieve and return details of a specific book by its ID.
@@ -85,6 +88,7 @@ def get_book(book_id):
     :param book_id: ID of the book to retrieve
     :return: JSON response with details of the specified book
     """
+
     try:
         # Fetch the book by ID or return a 404 error if not found
         book = Book.query.get_or_404(book_id)
@@ -130,7 +134,7 @@ def filter_books():
         # Handle unexpected errors during retrieval
         return jsonify({"message": f"Error filtering books: {str(e)}"}), 500
 
-@frontend_bp.route('/borrow/<int:book_id>', methods=['POST'])
+@frontend_bp.route('/borrow/<string:book_id>', methods=['POST'])
 def borrow_book(book_id):
     """
     Borrow a book, update its availability status, and notify the backend service.
@@ -143,10 +147,12 @@ def borrow_book(book_id):
 
     if not book.is_available:
         return jsonify({"message": "Book already borrowed"}), 400
-
+    
     borrow_duration = data.get('days')
-    if borrow_duration is None or borrow_duration <= 0:
-        return jsonify({"message": "Invalid borrow duration"}), 400
+
+    # Validate that 'days' is an integer
+    if not isinstance(borrow_duration, int) or borrow_duration <= 0:
+        return jsonify({"message": "borrow duration (days) should be a positive integer"}), 400
 
     # Update book availability status
     book.is_available = False
@@ -158,7 +164,7 @@ def borrow_book(book_id):
         book.save()
 
         # Notify the backend service using a webhook
-        backend_update_url = 'http://localhost:5000/webhooks/update-book'
+        backend_update_url = 'http://localhost:5000//api/v1/backend/admin/webhooks/update-book'
         payload = {'book_id': book_id, 'is_available': book.is_available}
 
         response = requests.post(backend_update_url, json=payload)
@@ -183,6 +189,13 @@ def add_book_webhook():
     
     if not book_data:
         return jsonify({"message": "Missing book data"}), 400
+    
+    # Convert date strings to datetime objects
+    for date_field in ['created_at', 'updated_at', 'borrowed_at', 'return_by']:
+        if book_data.get(date_field):
+            book_data[date_field] = datetime.fromisoformat(book_data[date_field])
+        elif date_field in book_data and book_data[date_field] is None:
+            book_data[date_field] = None
 
     # Check if the book already exists
     book = Book.query.get(book_data['id'])

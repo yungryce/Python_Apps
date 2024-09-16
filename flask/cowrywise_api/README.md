@@ -5,17 +5,19 @@ cowryrise project assesment
 ### For Backend Service:
 ```
 export FLASK_APP=backend.app
-flask db init --directory migrations_backend
-flask db migrate --directory migrations_backend
-flask db upgrade --directory migrations_backend
+export APP_ROLE=backend
+flask db init --directory backend/migrations
+flask db migrate --directory backend/migrations
+<!-- flask db migrate -m "Updated book and user relationship" --directory backend/migrations -->
+flask db upgrade --directory backend/migrations
 ```
 
 ### For Frontend Service:
 ```
 export FLASK_APP=frontend.app
-flask db init --directory migrations_frontend
-flask db migrate --directory migrations_frontend
-flask db upgrade --directory migrations_frontend
+flask db init --directory frontend/migrations
+flask db migrate --directory frontend/migrations
+flask db upgrade --directory frontend/migrations
 ```
 
 
